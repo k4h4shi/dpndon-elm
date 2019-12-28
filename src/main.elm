@@ -1,6 +1,6 @@
 module Main exposing (Model, Msg(..), init, main, update, view)
 
-import Browser
+import Browser exposing (Document)
 import Html exposing (Html, a, button, div, footer, h1, h2, input, nav, span, text)
 import Html.Attributes exposing (class, href, value)
 import Html.Events exposing (onClick, onInput)
@@ -12,7 +12,7 @@ import Html.Events exposing (onClick, onInput)
 
 main : Program () Model Msg
 main =
-    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
+    Browser.document { init = init, update = update, view = view, subscriptions = subscriptions }
 
 
 
@@ -66,13 +66,17 @@ subscriptions _ =
 -- VIEW
 
 
-view : Model -> Html Msg
+view : Model -> Document Msg
 view model =
-    div [ class "hero is-fullheight " ]
-        [ viewHeader
-        , viewMain model
-        , viewFooter
+    { title = "Dpndon"
+    , body =
+        [ div [ class "hero is-fullheight " ]
+            [ viewHeader
+            , viewMain model
+            , viewFooter
+            ]
         ]
+    }
 
 
 viewHeader : Html Msg
