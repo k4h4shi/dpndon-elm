@@ -3,7 +3,7 @@ module Main exposing (Model, Msg(..), init, main, update, view)
 import Browser
 import Html exposing (Html, a, button, div, footer, h1, h2, input, nav, span, text)
 import Html.Attributes exposing (class, href, value)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 
 
 
@@ -12,7 +12,7 @@ import Html.Events exposing (onClick)
 
 main : Program () Model Msg
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element { init = init, update = update, view = view, subscriptions = subscriptions }
 
 
 
@@ -24,9 +24,14 @@ type alias Model =
     }
 
 
-init : Model
-init =
+initialModel : Model
+initialModel =
     { input = "" }
+
+
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( initialModel, Cmd.none )
 
 
 
@@ -38,14 +43,23 @@ type Msg
     | Reset
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         Input value ->
-            { model | input = value }
+            ( { model | input = value }, Cmd.none )
 
         Reset ->
-            { model | input = "" }
+            ( { model | input = "" }, Cmd.none )
+
+
+
+-- SUBSCRIPTIONS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
 
 
 
@@ -89,7 +103,7 @@ viewMainForm : Model -> Html Msg
 viewMainForm model =
     div [ class "field has-addons has-addons-centered " ]
         [ div [ class "control" ]
-            [ input [ class "input", value model.input ] []
+            [ input [ class "input", value model.input, onInput Input ] []
             ]
         , div [ class "control" ] [ button [ class "button is-primary", onClick Reset ] [ text "Go" ] ]
         ]
