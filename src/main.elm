@@ -2,11 +2,11 @@ module Main exposing (Model, Msg(..), init, main, update, view)
 
 import Browser exposing (Document)
 import Browser.Navigation as Nav
-import Html exposing (Attribute, Html, a, article, button, div, footer, h1, h2, input, nav, span, text)
-import Html.Attributes as Attr exposing (class, disabled, href, value)
+import Html exposing (Attribute, Html, a, article, br, button, div, footer, h1, h2, input, li, nav, p, small, span, strong, text, ul)
+import Html.Attributes exposing (class, disabled, href, style, value)
 import Html.Events exposing (onClick, onInput)
 import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, string)
+import Url.Parser as Parser exposing ((</>), Parser, fragment, oneOf, s, string)
 
 
 
@@ -29,12 +29,28 @@ main =
 -- MODEL
 
 
+type DependencyType
+    = ProdDependency
+    | DevDependency
+    | OptDependency
+    | BundleDependency
+
+
 type alias Dependency =
-    { name : String
+    { dependencyType : DependencyType
+    , name : String
     , version : String
     , description : String
     , homepage : String
     }
+
+
+type Tab
+    = All
+    | Prod
+    | Dev
+    | Opt
+    | Bundle
 
 
 type alias Model =
@@ -43,6 +59,8 @@ type alias Model =
 
     -- Top
     , packageName : String
+
+    -- Packages
     , dependencies : List Dependency
     }
 
@@ -53,9 +71,11 @@ init _ url key =
       , key = key
       , packageName = ""
       , dependencies =
-            [ Dependency "babel-cli" "6.26.0" "Babel command line." "https://babeljs.io/"
-            , Dependency "babel-preset-es2015" "6.24.1" "Babel preset for all es2015 plugins." "https://babeljs.io/"
-            , Dependency "chai" "4.2.0" "BDD/TDD assertion library for node.js and the browser. Test framework agnostic." "https://www.chaijs.com/"
+            -- TODO: 依存性の取得を実装する
+            [ Dependency ProdDependency "babel-cli" "6.26.0" "Babel command line." "https://babeljs.io/"
+            , Dependency DevDependency "babel-preset-es2015" "6.24.1" "Babel preset for all es2015 plugins." "https://babeljs.io/"
+            , Dependency OptDependency "chai" "4.2.0" "BDD/TDD assertion library for node.js and the browser. Test framework agnostic." "https://www.chaijs.com/"
+            , Dependency BundleDependency "chai" "4.2.0" "BDD/TDD assertion library for node.js and the browser. Test framework agnostic." "https://www.chaijs.com/"
             ]
       }
     , Cmd.none
@@ -72,6 +92,10 @@ type Msg
       -- Top
     | Input String
     | Submit
+
+
+
+-- Packages
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -111,6 +135,7 @@ update msg model =
 
 
 
+-- Packages
 -- SUBSCRIPTIONS
 
 
@@ -125,14 +150,14 @@ subscriptions _ =
 
 type Route
     = TopRoute
-    | NpmPackageRoute String
+    | NpmPackageRoute String Tab
 
 
 parser : Parser (Route -> a) a
 parser =
     oneOf
         [ Parser.map TopRoute Parser.top
-        , Parser.map NpmPackageRoute (s "packages" </> string)
+        , Parser.map NpmPackageRoute (s "packages" </> string </> fragment mapFragmentToTab)
         ]
 
 
@@ -155,8 +180,8 @@ view model =
         Just TopRoute ->
             viewTopPage model
 
-        Just (NpmPackageRoute packageName) ->
-            viewNpmPackagePage model packageName
+        Just (NpmPackageRoute packageName tabType) ->
+            viewNpmPackagePage model packageName tabType
 
 
 
@@ -174,7 +199,7 @@ viewTopPage model =
     in
     { title = "Dpndon"
     , body =
-        [ div [ class "hero is-fullheight " ]
+        [ div [ class "hero is-fullheight" ]
             [ viewHeader
             , div [ class "hero-body" ]
                 [ div [ class "container has-text-centered" ]
@@ -194,21 +219,123 @@ viewTopPage model =
     }
 
 
-viewNpmPackagePage : Model -> String -> Document Msg
-viewNpmPackagePage model packageName =
+getTabActiveClass : Tab -> Tab -> String
+getTabActiveClass tab target =
+    if tab == target then
+        "is-active"
+
+    else
+        ""
+
+
+mapFragmentToTab : Maybe String -> Tab
+mapFragmentToTab maybeStr =
+    case maybeStr of
+        Just str ->
+            if str == "prod" then
+                Prod
+
+            else if str == "dev" then
+                Dev
+
+            else if str == "opt" then
+                Opt
+
+            else if str == "bundle" then
+                Bundle
+
+            else
+                All
+
+        Nothing ->
+            All
+
+
+filterDependencies : Tab -> List Dependency -> List Dependency
+filterDependencies tab dependencies =
+    case tab of
+        All ->
+            dependencies
+
+        Prod ->
+            List.filter (\dep -> dep.dependencyType == ProdDependency) dependencies
+
+        Dev ->
+            List.filter (\dep -> dep.dependencyType == DevDependency) dependencies
+
+        Opt ->
+            List.filter (\dep -> dep.dependencyType == OptDependency) dependencies
+
+        Bundle ->
+            List.filter (\dep -> dep.dependencyType == BundleDependency) dependencies
+
+
+viewNpmPackagePage : Model -> String -> Tab -> Document Msg
+viewNpmPackagePage model packageName tab =
     let
         { dependencies } =
             model
     in
     { title = "Dpndon - " ++ packageName
     , body =
-        [ div [ class "hero is-fullheight " ]
+        [ div [ style "min-height" "100vh", style "display" "flex", style "flex-direction" "column" ]
             [ viewHeader
-            , div [ class "hero-body" ]
-                [ div [ class "container has-text-centered" ]
-                    [ h1 [ class "title" ] [ text packageName ]
+            , div [ style "flex" "1" ]
+                [ div [ class "container" ]
+                    [ h1 [ class "title" ]
+                        [ text packageName ]
+                    , div [ class "tabs" ]
+                        [ ul []
+                            [ li [ class (getTabActiveClass tab All) ] [ a [ href "" ] [ text "All" ] ]
+                            , li [ class (getTabActiveClass tab Prod) ] [ a [ href "#prod" ] [ text "Prod" ] ]
+                            , li [ class (getTabActiveClass tab Dev) ] [ a [ href "#dev" ] [ text "Dev" ] ]
+                            , li [ class (getTabActiveClass tab Opt) ] [ a [ href "#opt" ] [ text "Opt" ] ]
+                            , li [ class (getTabActiveClass tab Bundle) ] [ a [ href "#bundle" ] [ text "Bundle" ] ]
+                            ]
+                        ]
+                    , div []
+                        (List.map
+                            (\dependency ->
+                                div [ class "box" ]
+                                    [ article [ class "media" ]
+                                        [ div [ class "media-content" ]
+                                            [ div [ class "content" ]
+                                                [ p
+                                                    []
+                                                    [ strong [] [ text dependency.name ], text " ", small [] [ text dependency.version ], br [] [], text dependency.description ]
+                                                ]
+                                            , nav [ class "level" ]
+                                                [ div [ class "level-left" ]
+                                                    [ span [ class "tag is-light" ]
+                                                        [ text
+                                                            (case dependency.dependencyType of
+                                                                ProdDependency ->
+                                                                    "prod"
 
-                    -- TODO: 依存性のリストを表示する
+                                                                DevDependency ->
+                                                                    "dev"
+
+                                                                OptDependency ->
+                                                                    "opt"
+
+                                                                BundleDependency ->
+                                                                    "bundle"
+                                                            )
+                                                        ]
+                                                    ]
+                                                , div
+                                                    [ class "level-right" ]
+                                                    [ div [ class "level-item" ]
+                                                        [ a [ class "button is-link is-light", href dependency.homepage ] [ text "Go to homepage" ]
+                                                        ]
+                                                    ]
+                                                ]
+                                            ]
+                                        ]
+                                    ]
+                            )
+                            (filterDependencies tab dependencies)
+                        )
                     ]
                 ]
             , viewFooter
@@ -218,7 +345,7 @@ viewNpmPackagePage model packageName =
 
 
 viewNotFoundPage : Model -> Document Msg
-viewNotFoundPage model =
+viewNotFoundPage _ =
     { title = "Dpndon - Notfound"
     , body =
         [ div [ class "hero is-fullheight " ]
@@ -245,7 +372,7 @@ viewHeader =
         [ nav [ class "navbar" ]
             [ div [ class "container" ]
                 [ div [ class "navbar-brand" ]
-                    [ a [ class "navbar-item", href "" ] [ text "dpndon" ]
+                    [ a [ class "navbar-item", href "/" ] [ text "dpndon" ]
                     ]
                 ]
             ]
